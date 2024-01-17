@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Places from "./components/Places.jsx";
 import Modal from "./components/Modal.jsx";
 import DeleteConfirmation from "./components/DeleteConfirmation.jsx";
@@ -6,59 +6,43 @@ import logoImg from "./assets/logo.png";
 import AvailablePlaces from "./components/AvailablePlaces.jsx";
 import { fetchUserPlaces, updateUserPlaces } from "./http.js";
 import Error from "./components/Error.jsx";
+import { useFetch } from "./hooks/useFetch.js";
 
 function App() {
   const selectedPlace = useRef();
 
-  const [pickedPlaces, setPickedPlaces] = useState([]);
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState();
-
   const [errorUpdatingPlaces, setErrorUpdatingPlaces] = useState();
-
   const [modalIsOpen, setModalIsOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchPlaces(params) {
-      setIsFetching(true);
+  const {
+    isFetching,
+    fetchedData: pickedPlaces,
+    setFetchedData: setPickedPlaces,
+    error,
+  } = useFetch(fetchUserPlaces, []);
 
-      try {
-        const userPlaces = await fetchUserPlaces();
-        setPickedPlaces(userPlaces);
-      } catch (error) {
-        setError({
-          message: error.message || "Error fetching user places!",
-        });
-      }
-
-      setIsFetching(false);
-    }
-
-    fetchPlaces();
-  }, []);
-
-  function handleStartRemovePlace(id) {
+  function handleStartRemovePlace(place) {
     setModalIsOpen(true);
-    selectedPlace.current = id;
+    selectedPlace.current = place;
   }
 
   function handleStopRemovePlace() {
     setModalIsOpen(false);
   }
 
-  async function handleSelectPlace(selectedPlace) {
+  async function handleSelectPlace(newPlace) {
     setPickedPlaces((prevPickedPlaces) => {
       if (!prevPickedPlaces) {
         prevPickedPlaces = [];
       }
-      if (prevPickedPlaces.some((place) => place.id === selectedPlace.id)) {
+      if (prevPickedPlaces.some((place) => place.id === newPlace.id)) {
         return prevPickedPlaces;
       }
-      return [selectedPlace, ...prevPickedPlaces];
+      return [newPlace, ...prevPickedPlaces];
     });
 
     try {
-      await updateUserPlaces([selectedPlace, ...pickedPlaces]);
+      await updateUserPlaces([newPlace, ...pickedPlaces]);
     } catch (error) {
       setPickedPlaces(pickedPlaces);
       setErrorUpdatingPlaces({
@@ -79,7 +63,7 @@ function App() {
 
       try {
         await updateUserPlaces(
-          pickedPlaces.filter((place) => place.id !== selectedPlace.id)
+          pickedPlaces.filter((place) => place.id !== selectedPlace.current.id)
         );
       } catch (error) {
         setPickedPlaces(pickedPlaces);
@@ -88,7 +72,7 @@ function App() {
         });
       }
     },
-    [pickedPlaces]
+    [pickedPlaces, setPickedPlaces]
   );
 
   function handleError() {
